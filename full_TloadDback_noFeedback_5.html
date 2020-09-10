@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      color:#E6E6FA;
+      background-color: #1f1e1e;
+    }
+  </style>
+  <title>Time Load Dual Back Task</title>
+    <script src="jquery-1.7.1.min.js"></script>
+  <script src="jspsych-6.1.0/jspsych.js"></script>
+  <script src="bowser.js"></script> <!-- a browser and operating system detector -->
+  <script src="variables/variables.js"></script>
+  <script src="variables/settings.js"></script>
+  <script src="variables/functions.js"></script>
+  <script src="jspsych-6.1.0/plugins/jspsych-fullscreen.js"></script>
+  <script src="jspsych-6.1.0/plugins/jspsych-survey-text.js"></script>
+  <script src="jspsych-6.1.0/plugins/jspsych-survey-multi-choice.js"></script>
+  <script src="jspsych-6.1.0/plugins/jspsych-html-keyboard-response.js"></script>
+  <script src="jspsych-6.1.0/plugins/jspsych-html-slider-response.js"></script>
+  <script src="jspsych-6.1.0/plugins/jspsych-image-keyboard-response.js"></script>
+  <script src="jspsych-6.1.0/plugins/jspsych-instructions.js"></script> <!-- plugins define specific tasks, e.g., presenting instructions -->
+  <script src="variables/text_variables.js"></script> <!-- holds all the text variables for easy modification/translation -->
+  <link href="jspsych-6.1.0/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+  <script src="variables/BISBASNFCquestionnaires.js"></script>
+</head>
+<body></body>
+<script>
+  var timeline = [];
+  //--------------------------------------------------------------------------------------------------------------------------------
+
+  jsPsych.data.addProperties({ // add these variables to all rows of the datafile
+    browser_name: bowser.name, browser_version: bowser.version,
+    os_name: bowser.osname, os_version: bowser.osversion,
+    tablet: String(bowser.tablet), mobile: String(bowser.mobile),// convert explicitly to string so that "undefined" (no response) does not lead to empty cells in the datafile
+    screen_resolution: screen.width + ' x ' + screen.height,
+    window_resolution: window.innerWidth + ' x ' + window.innerHeight, // this will be updated throughout the experiment
+  });
+
+  var focus = 'focus';
+  var fullscreen_on = 'no';
+  var fullscreen = {
+    type: 'fullscreen',
+    fullscreen_mode: true,
+  };
+
+    if (document.location.host) { // returns your host or null
+      online = true;
+    } else {
+      online = false;
+    };
+    var redirect_timeout = 1500;
+
+//---------------------------------------------------------------------------------------------------------------------------
+// Create the desgn for practice and real experiment
+
+
+  //-------------------------------------------------------------------------------------------------------------------------------------------
+  /* Welcome */
+  var welcome = {
+    type: "instructions",
+    pages:[welcome, welcome2],
+    show_clickable_nav: true,
+  }
+  timeline.push(welcome);
+  var prac_design = create_design_mult(trials_per_practiceblock_letter,1)
+  var prac_design2 = create_design_mult(trials_per_practiceblock,1)
+  var design_easy = create_design_mult(trials_per_block,number_of_blocks);
+  var design_hard = create_design_mult(trials_per_block,number_of_blocks);
+  timeline.push(prolific);
+  timeline.push(fullscreen);
+  timeline.push(inf_consent);
+
+
+//----------------------------------------------------------------------------------------------------------------------------------
+//practice task variables//
+/* number tasks */
+var practice_number_trial = {
+  type: "html-keyboard-response",
+  stimulus:function(){
+    var number = jsPsych.randomization.sampleWithoutReplacement(numbers, 1)[0]
+    var numb = parseInt(number);
+    safe_number_sequence.push(numb);
+    return '<span style="font-size: 96px">'+numb+'</span>'
+  },
+  choices: [37,39],
+  trial_duration: 1400,
+  response_ends_trial: false,
+  stimulus_duration:1400,
+  post_trial_gap:500,
+  data: {
+    phase: 'p_test2'
+  },
+  on_finish: function(data){
+    if(safe_number_sequence[safe_number_sequence.length-1]%2 == 0){
+      data.num_type = 'even';
+      if(key_LR == 'left'){
+        data.correct2 = (data.key_press == 37)
+      }else {
+        data.correct2 = (data.key_press == 39)
+      }
+    } else {
+      data.num_type = 'odd';
+      if(key_LR == 'left'){
+      data.correct2 = (data.key_press == 39)
+    }else {
+      data.correct2 = (data.key_press == 37)
+    }
+    }
+  }
+}
+//n-back
+var practice_n_back_trial = {
+  type: 'html-keyboard-response',
+  stimulus: function() {
+    if(sequence.length < how_many_back){
+      var letter = jsPsych.randomization.sampleWithoutReplacement(n_back_practice_set, 1)[0]
+    } else {
+      if(jsPsych.timelineVariable('letter', true) == 'same'){
+        var letter = sequence[sequence.length - how_many_back];
+      } else {
+        var possible_letters = jsPsych.randomization.sampleWithoutReplacement(n_back_practice_set, 2);
+        if(possible_letters[0] != sequence[sequence.length - how_many_back]){
+          var letter = possible_letters[0];
+        } else {
+          var letter = possible_letters[1];
+        }
+      }
+    }
+    sequence.push(letter);
+    return '<span style="font-size: 96px">'+letter+'</span>'
+  },
+  choices: ['space'],
+  stimulus_duration: 1400,
+  response_ends_trial: false,
+  trial_duration: 1400,
+  post_trial_gap:500,
+  data: {
+    phase: 'p_test',
+    match: jsPsych.timelineVariable('letter')
+  },
+  on_finish: function(data){
+    if(jsPsych.timelineVariable('letter',true) == 'same'){
+      data.correct = (data.key_press != null)
+    }
+    if(jsPsych.timelineVariable('letter',true) == 'diff'){
+      data.correct = (data.key_press === null)
+    }
+  }
+}
+
+var practice_2_back_trial = {
+  type: 'html-keyboard-response',
+  stimulus: function() {
+    if(sequence.length < how_many_back2){
+      var letter = jsPsych.randomization.sampleWithoutReplacement(n_back_practice_set, 1)[0]
+    } else {
+      if(jsPsych.timelineVariable('letter', true) == 'same'){
+        var letter = sequence[sequence.length - how_many_back2];
+      } else {
+        var possible_letters = jsPsych.randomization.sampleWithoutReplacement(n_back_practice_set, 2);
+        if(possible_letters[0] != sequence[sequence.length - how_many_back2]){
+          var letter = possible_letters[0];
+        } else {
+          var letter = possible_letters[1];
+        }
+      }
+    }
+    sequence.push(letter);
+    return '<span style="font-size: 96px">'+letter+'</span>'
+  },
+  choices: ['space'],
+  stimulus_duration: 1400,
+  response_ends_trial: false,
+  trial_duration: 1400,
+  post_trial_gap:500,
+  data: {
+    phase: 'p_test',
+    match: jsPsych.timelineVariable('letter')
+  },
+  on_finish: function(data){
+    if(jsPsych.timelineVariable('letter',true) == 'same'){
+      data.correct = (data.key_press != null)
+    }
+    if(jsPsych.timelineVariable('letter',true) == 'diff'){
+      data.correct = (data.key_press === null)
+    }
+  }
+}
+  //--------------------------------------------------------------------------------------------------------------------------------
+  //practice sequences
+  /* n-bakc sequence */
+  var n_back_sequence_prac = {
+    timeline: [practice_n_back_trial],
+    timeline_variables: prac_design,
+    randomize_order: false,
+    repetitions: 1,
+  }
+  var n2_back_sequence_prac = {
+    timeline: [practice_2_back_trial],
+    timeline_variables: prac_design,
+    randomize_order: false,
+    repetitions: 1,
+  }
+    /* number sequence */
+  var number_sequence_prac = {
+    timeline: [practice_number_trial],
+    sample: {
+      type: 'with-replacement',
+      size: trials_per_practiceblock_number,
+    }
+  }
+  /* TloadDback sequence */
+  var TloadDback_sequence_prac = {
+    timeline: [practice_n_back_trial,practice_number_trial],
+    timeline_variables:prac_design2,
+    randomize_order: false,
+    repetitions: 1,
+  }
+  var TloadDback2_sequence_prac = {
+    timeline: [practice_2_back_trial,practice_number_trial],
+    timeline_variables:prac_design2,
+    randomize_order: false,
+    repetitions: 1,
+  }
+//-------------------------------------------------------------------------------------------------------------------------------
+  /* feedback practice */
+  /* feedback n-back*/
+  var repeat_choice = {
+    type: 'html-keyboard-response',
+    stimulus: "<p> Press <strong>enter</strong> to continue </p>"+
+    "<p>Press <strong>space</strong> to practice again</p> ",
+    choices: ['space','enter'],
+  }
+  var feedback_let = {
+    type: 'html-keyboard-response',
+    stimulus: function(){
+      var test_trials = jsPsych.data.get().filter({phase: 'p_test'}).last(trials_per_practiceblock_letter-how_many_back);
+      var n_match = test_trials.filter({match: 'same'}).count();
+      var n_nonmatch = test_trials.filter({match: 'diff'}).count();
+      var n_correct = test_trials.filter({match: 'same', correct: true}).count();
+      var false_alarms = test_trials.filter({match: 'diff', correct: false}).count();
+      var misses = test_trials.filter({match: 'same', correct: false}).count();
+      var html = "<div style='width:800px'>"+
+        "<p>You indentified "+n_correct+" of the "+n_match+" matching items.</p>"+
+        "<p>You missed "+misses+" of the "+n_match+" matching items.</p>"+
+        "<p>You incorrectly identified "+false_alarms+" of the "+n_nonmatch+" non-matching items as matches.</p>"+'<br>'+
+        "<p>Press <strong>enter</strong> to continue </p>"
+        return html;
+      },
+      choices: ['enter'],
+    }
+  var feedback_let2 = {
+    type: 'html-keyboard-response',
+    stimulus: function(){
+      var test_trials = jsPsych.data.get().filter({phase: 'p_test'}).last(trials_per_practiceblock_letter-how_many_back2);
+      var n_match = test_trials.filter({match: 'same'}).count();
+      var n_nonmatch = test_trials.filter({match: 'diff'}).count();
+      var n_correct = test_trials.filter({match: 'same', correct: true}).count();
+      var false_alarms = test_trials.filter({match: 'diff', correct: false}).count();
+      var misses = test_trials.filter({match: 'same', correct: false}).count();
+      var html = "<div style='width:800px'>"+
+        "<p>You indentified "+n_correct+" of the "+n_match+" matching items.</p>"+
+        "<p>You missed "+misses+" of the "+n_match+" matching items.</p>"+
+        "<p>You incorrectly identified "+false_alarms+" of the "+n_nonmatch+" non-matching items as matches.</p>"+'<br>'+
+        "<p>Press <strong>enter</strong> to continue </p>"
+        return html;
+      },
+      choices: ['enter'],
+    }
+    /* feedback numbers*/
+    var feedback_numbers = {
+      type: 'html-keyboard-response',
+      stimulus: function(){
+        var test_trials2 = jsPsych.data.get().filter({phase: 'p_test2'}).last(trials_per_practiceblock_number);
+        var n_correct2 = test_trials2.filter({correct2: true}).count();
+        var mistake = test_trials2.filter({correct2: false}).count();
+        var html = "<div style='width:800px'>"+
+          "<p>You correctly classified "+n_correct2+" numbers"+
+            "<p>You inorrectly classified "+mistake+" numbers </p>"+'<br>'+
+            "<p> Press <strong>enter</strong> to continue </p>"
+            return html;
+          },
+          choices: ['enter'],
+        }
+        /* feedback Tload Dback */
+        var feedback_practice = {
+          type: 'html-keyboard-response',
+          stimulus: function(){
+            var test_trials = jsPsych.data.get().filter({phase: 'p_test'}).last(trials_per_practiceblock-how_many_back);
+            var test_trials2 = jsPsych.data.get().filter({phase: 'p_test2'}).last(trials_per_practiceblock);
+            var n_match = test_trials.filter({match: 'same'}).count();
+            var misses = test_trials.filter({match: 'same', correct: false}).count();
+            var n_nonmatch = test_trials.filter({match: 'diff'}).count();
+            var n_correct = test_trials.filter({match: 'same', correct: true}).count();
+            var n_correct2 = test_trials2.filter({correct2: true}).count();
+            var total_correct = n_correct + n_correct2;
+            var false_alarms = test_trials.filter({match: 'diff', correct: false}).count();
+            var mistake = test_trials2.filter({correct2: false}).count();
+            var total_mistakes = false_alarms + mistake+misses;
+            var num_acc = n_correct2/trials_per_practiceblock;
+            var type1 = n_correct/n_match;
+            var correct_ig = n_nonmatch-false_alarms;
+            var type2 = correct_ig/n_nonmatch;
+            var let_acc = type1*0.65+type2*0.35;
+            var acc_all = let_acc*0.65+num_acc*0.35;
+            var html = "<div style='width:800px'>"+
+              "<p>You correctly classified " +n_correct2+" numbers</p>"+
+              "<p>You incorrectly classified " +mistake+" numbers</p>"+
+              "<p>You indentified "+n_correct+" of the "+n_match+" matching items.</p>"+
+              "<p>You missed "+misses+" of the "+n_match+" matching items.</p>"+
+              "<p>You incorrectly identified "+false_alarms+" of the "+n_nonmatch+" non-matching items as matches.</p>"+
+              "<p>total correct " +total_correct+"</p>"+
+              "<p>total incorrect " +total_mistakes+"</p>"+
+              "<p> Press <strong>enter</strong> to continue </p>"
+
+              return html;
+            },
+            on_finish: function(data){
+              var test_trials = jsPsych.data.get().filter({phase: 'p_test'}).last(trials_per_practiceblock-how_many_back);
+              var test_trials2 = jsPsych.data.get().filter({phase: 'p_test2'}).last(trials_per_practiceblock);
+              var n_match = test_trials.filter({match: 'same'}).count();
+              var misses = test_trials.filter({match: 'same', correct: false}).count();
+              var n_nonmatch = test_trials.filter({match: 'diff'}).count();
+              var n_correct = test_trials.filter({match: 'same', correct: true}).count();
+              var n_correct2 = test_trials2.filter({correct2: true}).count();
+              var total_correct = n_correct + n_correct2;
+              var false_alarms = test_trials.filter({match: 'diff', correct: false}).count();
+              var mistake = test_trials2.filter({correct2: false}).count();
+              var total_mistakes = false_alarms + mistake+misses;
+              var num_acc = n_correct2/trials_per_practiceblock;
+              var type1 = n_correct/n_match;
+              var correct_ig = n_nonmatch-false_alarms;
+              var type2 = correct_ig/n_nonmatch;
+              var let_acc = type1*0.65+type2*0.35;
+              var acc_all = let_acc*0.65+num_acc*0.35;
+              data.n_match = n_match,
+                data.n_nonmatch= n_nonmatch,
+                data.n_correct=n_correct,
+                data.n_correct2= n_correct2,
+                data.false_alarms= false_alarms,
+                data.misses= misses,
+                data.mistake= mistake,
+                data.total_correct= total_correct,
+                data.total_mistakes=total_mistakes,
+                data.num_acc=num_acc,
+                data.type1=type1,
+                data.type2=type2,
+                data.let_acc=let_acc,
+                data.acc_all=acc_all
+              },
+            choices: ['enter'],
+          }
+          var feedback_practice2 = {
+            type: 'html-keyboard-response',
+            stimulus: function(){
+              var test_trials = jsPsych.data.get().filter({phase: 'p_test'}).last(trials_per_practiceblock-how_many_back2);
+              var test_trials2 = jsPsych.data.get().filter({phase: 'p_test2'}).last(trials_per_practiceblock);
+              var n_match = test_trials.filter({match: 'same'}).count();
+              var misses = test_trials.filter({match: 'same', correct: false}).count();
+              var n_nonmatch = test_trials.filter({match: 'diff'}).count();
+              var n_correct = test_trials.filter({match: 'same', correct: true}).count();
+              var n_correct2 = test_trials2.filter({correct2: true}).count();
+              var total_correct = n_correct + n_correct2;
+              var false_alarms = test_trials.filter({match: 'diff', correct: false}).count();
+              var mistake = test_trials2.filter({correct2: false}).count();
+              var total_mistakes = false_alarms + mistake+misses;
+              var num_acc = n_correct2/trials_per_practiceblock;
+              var type1 = n_correct/n_match;
+              var correct_ig = n_nonmatch-false_alarms;
+              var type2 = correct_ig/n_nonmatch;
+              var let_acc = type1*0.65+type2*0.35;
+              var acc_all = let_acc*0.65+num_acc*0.35;
+              var html = "<div style='width:800px'>"+
+                "<p>You correctly classified " +n_correct2+" numbers</p>"+
+                "<p>You incorrectly classified " +mistake+" numbers</p>"+
+                "<p>You indentified "+n_correct+" of the "+n_match+" matching items.</p>"+
+                "<p>You missed "+misses+" of the "+n_match+" matching items.</p>"+
+                "<p>You incorrectly identified "+false_alarms+" of the "+n_nonmatch+" non-matching items as matches.</p>"+
+                "<p>total correct " +total_correct+"</p>"+
+                "<p>total incorrect " +total_mistakes+"</p>"+
+                "<p> Press <strong>enter</strong> to continue </p>"
+
+                return html;
+              },
+              on_finish: function(data){
+                var test_trials = jsPsych.data.get().filter({phase: 'p_test'}).last(trials_per_practiceblock-how_many_back2);
+                var test_trials2 = jsPsych.data.get().filter({phase: 'p_test2'}).last(trials_per_practiceblock);
+                var n_match = test_trials.filter({match: 'same'}).count();
+                var misses = test_trials.filter({match: 'same', correct: false}).count();
+                var n_nonmatch = test_trials.filter({match: 'diff'}).count();
+                var n_correct = test_trials.filter({match: 'same', correct: true}).count();
+                var n_correct2 = test_trials2.filter({correct2: true}).count();
+                var total_correct = n_correct + n_correct2;
+                var false_alarms = test_trials.filter({match: 'diff', correct: false}).count();
+                var mistake = test_trials2.filter({correct2: false}).count();
+                var total_mistakes = false_alarms + mistake+misses;
+                var num_acc = n_correct2/trials_per_practiceblock;
+                var type1 = n_correct/n_match;
+                var correct_ig = n_nonmatch-false_alarms;
+                var type2 = correct_ig/n_nonmatch;
+                var let_acc = type1*0.65+type2*0.35;
+                var acc_all = let_acc*0.65+num_acc*0.35;
+                data.n_match = n_match,
+                  data.n_nonmatch= n_nonmatch,
+                  data.n_correct=n_correct,
+                  data.n_correct2= n_correct2,
+                  data.false_alarms= false_alarms,
+                  data.misses= misses,
+                  data.mistake= mistake,
+                  data.total_correct= total_correct,
+                  data.total_mistakes=total_mistakes,
+                  data.num_acc=num_acc,
+                  data.type1=type1,
+                  data.type2=type2,
+                  data.let_acc=let_acc,
+                  data.acc_all=acc_all
+                },
+              choices: ['enter'],
+            }
+//-------------------------------------------------------------------------------------------------------------------------------
+// practice loops
+/* n-back loop */
+var n_back_practice ={
+  timeline: [instructions_n_back,n_back_sequence_prac,feedback_let],
+}
+
+var loop_node_n_back = {
+  timeline: [instructions_n_back,n_back_sequence_prac,feedback_let,repeat_choice],
+  loop_function: function(data){
+    if(jsPsych.pluginAPI.convertKeyCharacterToKeyCode('space') == jsPsych.data.get().last(1).values()[0].key_press){
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+timeline.push(loop_node_n_back);
+
+
+var n2_back_practice ={
+  timeline: [instructions_2_back,n2_back_sequence_prac,feedback_let2],
+}
+
+var loop_node_2_back = {
+  timeline: [instructions_2_back,n2_back_sequence_prac,feedback_let2,repeat_choice],
+  loop_function: function(data){
+    if(jsPsych.pluginAPI.convertKeyCharacterToKeyCode('space') == jsPsych.data.get().last(1).values()[0].key_press){
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+timeline.push(loop_node_2_back);
+
+var number_practice = {
+  timeline:[instructions_numbers,number_sequence_prac,feedback_numbers],
+}
+
+/* number loop */
+var loop_node_number = {
+  timeline: [instructions_numbers,number_sequence_prac,feedback_numbers,repeat_choice],
+  loop_function: function(data){
+    if(jsPsych.pluginAPI.convertKeyCharacterToKeyCode('space') == jsPsych.data.get().last(1).values()[0].key_press){
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+timeline.push(loop_node_number);
+          /* TloadDback loop */
+
+timeline.push(intro_TloadDback);
+var loop_node = {
+            timeline: [instructions_TloadDback,instructions_TloadDback2,TloadDback_sequence_prac,feedback_practice],
+            loop_function: function(data){
+
+              if(jsPsych.data.get().last(1).values()[0].acc_all<0.85){
+                return true;
+              } else {
+                return false;
+              }
+            }
+          }
+ timeline.push(loop_node);
+
+ timeline.push(intro_TloadDback2);
+ var loop_node2 = {
+             timeline: [instructions_TloadDback,instructions2_TloadDback2,TloadDback2_sequence_prac,feedback_practice2],
+             loop_function: function(data){
+
+               if(jsPsych.data.get().last(1).values()[0].acc_all<0.85){
+                 return true;
+               } else {
+                 return false;
+               }
+             }
+           }
+  timeline.push(loop_node2);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+// n-back
+timeline.push(fatigue);
+var end_practice = {
+  type: "instructions",
+  pages:[page1,page1_1],
+  show_clickable_nav: true,
+}
+timeline.push(end_practice);
+
+var n_back_trial = {
+            type: 'html-keyboard-response',
+            stimulus: function() {
+              if(full_sequence.length < how_many_back2){
+                var letter = jsPsych.randomization.sampleWithoutReplacement(n_back_set, 1)[0]
+              } else {
+                if(jsPsych.timelineVariable('letter', true) == 'same'){
+                  var letter = full_sequence[full_sequence.length - how_many_back2];
+                } else {
+                  var possible_letters = jsPsych.randomization.sampleWithoutReplacement(n_back_set, 2);
+                  if(possible_letters[0] != full_sequence[full_sequence.length - how_many_back2]){
+                    var letter = possible_letters[0];
+                  } else {
+                    var letter = possible_letters[1];
+                  }
+                }
+              }
+              full_sequence.push(letter);
+              return '<span style="font-size: 96px">'+letter+'</span>'
+            },
+            choices: ['space'],
+            trial_duration: 1200,
+            response_ends_trial: false,
+            stimulus_duration: 1200,
+            post_trial_gap:500,
+            data: {
+              difficulty: 'hard',
+              phase: 'test',
+              match: jsPsych.timelineVariable('letter')
+            },
+            on_start: function(){
+              if (trial_ind==nieuw) {
+                block_nr =block_nr+1;
+                trial_ind =0;
+              }
+            },
+            on_finish: function(data){
+              trial_ind=trial_ind+1;
+              data.trial =trial_ind
+              data.block=block_nr
+              if(jsPsych.timelineVariable('letter',true) == 'same'){
+                data.correct = (data.key_press != null)
+              }
+              if(jsPsych.timelineVariable('letter',true) == 'diff'){
+                data.correct = (data.key_press === null)
+              }
+            }
+          }
+          /* number */
+var number_trial = {
+            type: "html-keyboard-response",
+            stimulus:function(){
+              var number = jsPsych.randomization.sampleWithoutReplacement(numbers, 1)[0]
+              var numb = parseInt(number);
+              full_number_sequence.push(numb);
+              return '<span style="font-size: 96px">'+numb+'</span>'
+            },
+            choices: [37,39],
+            trial_duration: 1200,
+            response_ends_trial: false,
+            stimulus_duration:1200,
+            post_trial_gap:500,
+            data: {
+              difficulty: 'hard'
+            },
+            on_finish: function(data){
+              trial_ind=trial_ind+1;
+              data.phase = 'test2'
+              data.trial =trial_ind
+              data.block=block_nr
+              if(full_number_sequence[full_number_sequence.length-1]%2 == 0){
+                data.num_type = 'even';
+                if(key_LR == 'left'){
+                  data.correct2 = (data.key_press == 37)
+                }else{
+                  data.correct2 = (data.key_press == 39)
+                }
+              } else {
+                data.num_type = 'odd';
+                if(key_LR == 'left'){
+                  data.correct2 = (data.key_press == 39)
+                }else{
+                  data.correct2 = (data.key_press == 37)
+                }
+              }
+            }
+          }
+
+var n_back_trial_easy = {
+  type: 'html-keyboard-response',
+  stimulus: function() {
+    if(full_sequence.length < how_many_back){
+      var letter = jsPsych.randomization.sampleWithoutReplacement(n_back_set, 1)[0]
+    } else {
+      if(jsPsych.timelineVariable('letter', true) == 'same'){
+        var letter = full_sequence[full_sequence.length - how_many_back];
+      } else {
+        var possible_letters = jsPsych.randomization.sampleWithoutReplacement(n_back_set, 2);
+        if(possible_letters[0] != full_sequence[full_sequence.length - how_many_back]){
+          var letter = possible_letters[0];
+        } else {
+          var letter = possible_letters[1];
+        }
+      }
+    }
+    full_sequence.push(letter);
+    return '<span style="font-size: 96px">'+letter+'</span>'
+  },
+  choices: ['space'],
+  trial_duration: 1200,
+  response_ends_trial: false,
+  stimulus_duration: 1200,
+  post_trial_gap:500,
+  data: {
+    difficulty: 'easy',
+    phase: 'test_easy',
+    match: jsPsych.timelineVariable('letter')
+  },
+  on_start: function(){
+    if (trial_ind==nieuw) {
+      block_nr =block_nr+1;
+      trial_ind =0;
+    }
+  },
+  on_finish: function(data){
+    trial_ind=trial_ind+1;
+    data.trial =trial_ind
+    data.block=block_nr
+    if(jsPsych.timelineVariable('letter',true) == 'same'){
+      data.correct = (data.key_press != null)
+    }
+    if(jsPsych.timelineVariable('letter',true) == 'diff'){
+      data.correct = (data.key_press === null)
+    }
+  }
+}
+
+var number_trial_easy = {
+            type: "html-keyboard-response",
+            stimulus:function(){
+              var number = jsPsych.randomization.sampleWithoutReplacement(numbers, 1)[0]
+              var numb = parseInt(number);
+              full_number_sequence.push(numb);
+              return '<span style="font-size: 96px">'+numb+'</span>'
+            },
+            choices: [37,39],
+            trial_duration: 1200,
+            response_ends_trial: false,
+            stimulus_duration:1200,
+            post_trial_gap:500,
+            data: {
+              difficulty: 'easy'
+            },
+            on_finish: function(data){
+              trial_ind=trial_ind+1;
+              data.phase = 'test2_easy'
+              data.trial =trial_ind
+              data.block=block_nr
+              if(full_number_sequence[full_number_sequence.length-1]%2 == 0){
+                data.num_type = 'even';
+                if(key_LR == 'left'){
+                  data.correct2 = (data.key_press == 37)
+                }else{
+                  data.correct2 = (data.key_press == 39)
+                }
+              }else {
+                data.num_type = 'odd';
+                if(key_LR == 'left'){
+                data.correct2 = (data.key_press == 39)
+              }else{
+                data.correct2 = (data.key_press == 37)
+              }
+              }
+            }
+          }
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------
+//end
+              var goodbye = {
+                type: "html-keyboard-response",
+                stimulus: end_message,
+                on_start: function(data) {
+                  var subjID = jsPsych.data.get().last(1).values()[0]['participantID'];
+                  var full_data = jsPsych.data.get();
+                  if (!online) {
+                    full_data.localSave('csv', 'TlDB_data_' + subjID + '.csv');
+                  }
+                }
+              };
+//-------------------------------------------------------------------------------------------------------------------------------
+var TloadDback_sequence = {
+  timeline: [n_back_trial,number_trial],
+  timeline_variables: design_hard,
+  randomize_order: false,
+  repetitions: 1,
+}
+var TloadDback_sequence_easy = {
+  timeline: [n_back_trial_easy,number_trial_easy],
+  timeline_variables: design_easy,
+  randomize_order: false,
+  repetitions: 1,
+}
+var BISBAS = {
+  type: 'survey-multi-choice',
+  questions: bisbas_questions,
+  preamble: bisbas_preamble,
+  on_finish: function(data){
+    data.phase = 'BISBAS'
+    data.condition = 'BISBAS'
+  }
+}
+/* NFC */
+var NFC = {
+  type: 'survey-multi-choice',
+  questions: nfc_questions,
+  preamble: nfc_preamble,
+  on_finish: function(data){
+    data.phase = 'NFC'
+    data.condition = 'NFC'
+  }
+}
+
+    /* ASRS5 */
+    var ASRS5 = {
+      type: 'survey-multi-choice',
+      questions: asrs5_questions,
+      preamble: asrs5_preamble,
+      on_finish: function(data){
+        data.phase = 'asrs5'
+        data.condition = 'asrs5'        
+      }
+    }
+
+var set_easy = {
+ timeline: [instructions,instructions_easy_2,TloadDback_sequence_easy,fatigue,effort,difficult,boredom,mind_wandering,break_screen,instructions,instructions_2,TloadDback_sequence,fatigue,effort,difficult,boredom,mind_wandering,BISBAS,NFC,ASRS5,goodbye,fullscreen_off],
+  conditional_function: function(){
+    if(difficulty == 'easy'){
+      return true;
+    }else {
+      return false;
+    }
+  }
+}
+timeline.push(set_easy);
+var set_hard = {
+  timeline: [instructions,instructions_2,TloadDback_sequence,fatigue,effort,difficult,boredom,mind_wandering,break_screen,instructions,instructions_easy_2,TloadDback_sequence_easy,fatigue,effort,difficult,boredom,mind_wandering,BISBAS,NFC,ASRS5,goodbye,fullscreen_off],  
+  conditional_function: function(){
+    if(difficulty == 'hard'){
+      return true;
+    }else {
+      return false;
+    }
+  }
+}
+timeline.push(set_hard);
+//-------------------------------------------------------------------------------------------------------------------------
+function appendData(filename, filedata) {
+
+  $.ajax({ // make sure jquery-1.7.1.min.js is loaded in the html header for this to work
+
+    type: 'post',
+
+    cache: false,
+
+    url: 'php/save_data_append.php', // IMPORTANT: change the php script to link to the directory of your server where you want to store the data!
+
+    data: {
+
+      filename: filename,
+
+      filedata: filedata
+
+    },
+
+  });
+
+};
+
+jsPsych.init({
+  timeline: timeline,
+  on_data_update: function(data) {
+    data.focus = focus;
+    data.Fullscreen = fullscreen_on;
+    data.window_resolution =  window.innerWidth + ' x ' + window.innerHeight;
+    id_index = 1;
+    if (online){
+      var subjID = jsPsych.data.get().last(1).values()[0]['participantID'];
+      if (data.trial_index == id_index){ // write header
+        data_row ="participantID,trial,block,phase,difficulty,match,correct,num_type,correct2,rt,key_press,"+
+        "stimulus,response,question_order,responses,trial_type,trial_index,time_elapsed,browser_name,"+
+        "browser_version,os_name,os_version,tablet,mobile,screen_resolution,window_resolution,focus,Fullscreen,success,"+
+        "n_match,n_nonmatch,n_correct,n_correct2,false_alarms,misses,mistake,total_correct,total_mistakes,num_acc,"+
+        "type1,type2,let_acc,acc_all\n"
+
+        appendData('TlDB_data_'+ subjID +'.csv',data_row)
+      }else {
+        data_row = data.participantID + ',' + data.trial + ',' + data.block + ',' + data.phase + ',' + data.difficulty +
+        ',' + data.match + ',' + data.correct + ',' + data.num_type + ',' + data.correct2 + ',' + data.rt + ',' +
+        data.key_press + ',' + data.stimulus + ',' + data.response + ',' + data.question_order + ',' + data.responses + ',' + data.trial_type +
+        ',' + data.trial_index + ',' + data.time_elapsed + ',' + data.browser_name + ',' + data.browser_version +
+        ',' + data.os_name + ',' + data.os_version + ',' + data.tablet + ',' + data.mobile + ',' + data.screen_resolution +
+        ',' + data.window_resolution + ',' + data.focus + ',' + data.Fullscreen + ',' + data.success + ',' +
+        data.n_match + ',' + data.n_nonmatch + ',' + data.n_correct + ',' + data.n_correct2 + ',' + data.false_alarms +
+        ',' + data.misses + ',' + data.mistake + ',' + data.total_correct + ',' + data.total_mistakes + ',' + data.num_acc +
+        ',' + data.type1 + ',' + data.type2 + ',' + data.let_acc + ',' + data.acc_all+ '\n'
+
+        appendData('TlDB_data_'+ subjID +'.csv',data_row)
+      }
+      }
+
+
+  },
+  on_interaction_data_update: function(data) {
+    interaction = data.event;
+
+    if (interaction.includes("fullscreen")){
+// some unhandy coding to circumvent a bug in jspsych that logs fullscreenexit when actually entering
+      if (fullscreen_on == 'no') {fullscreen_on = 'yes'; return fullscreen_on}
+
+      else if (fullscreen_on == 'yes') {fullscreen_on = 'no'; return fullscreen_on}
+    }else if (interaction == 'blur' || interaction == 'focus'){
+
+      focus = interaction;
+
+      return focus;
+
+    }
+  },
+  on_finish: function() {
+
+    if (redirect_onCompletion){
+
+      setTimeout("location.href = '" + redirect_link + "';",redirect_timeout); // redirect to another URL with a certain delay, only when redirect_onCompletion is set to 'true'
+
+    }
+
+  },
+})
+</script>
+</html>
